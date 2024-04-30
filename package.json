@@ -1,0 +1,26 @@
+{
+  "name": "amountinator",
+  "version": "0.1.0",
+  "description": "Currency amount components and conversion",
+  "author": "Peer-to-peer Privacy Systems Research, LLC",
+  "license": "Open BSV License",
+  "main": "./out/src/index.js",
+  "types": "./out/src/index.d.ts",
+  "files": [
+    "out"
+  ],
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/p2ppsr/amountinator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/p2ppsr/amountinator/issues"
+  },
+  "homepage": "https://github.com/p2ppsr/amountinator#readme"
+}
