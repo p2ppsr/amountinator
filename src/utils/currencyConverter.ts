@@ -1,24 +1,16 @@
-import { getPreferredCurrency } from '@babbage/sdk-ts';
-import { CwiExternalServices } from 'cwi-external-services';
-import { formatAmountWithCurrency } from './amountFormatHelpers';
+import { getPreferredCurrency } from '@babbage/sdk-ts'
+import { CwiExternalServices } from 'cwi-external-services'
+import { formatAmountWithCurrency } from './amountFormatHelpers'
+import { ExchangeRates, FormatOptions } from '../types'
 const EXCHANGE_RATE_UPDATE_INTERVAL = 5 * 60 * 1000
 
-interface ExchangeRates {
-  usdPerBsv: number
-  gbpPerUsd: number
-  eurPerUsd: number
-}
-
-interface FormatOptions {
-  decimalPlaces?: number
-  useCommas?: boolean
-  useUnderscores?: boolean
-}
-
+/**
+ * Converts currency amounts to user's preferred currency, and supports converting all supported currency types to satoshis.
+ */
 export class CurrencyConverter {
   public exchangeRates: ExchangeRates
   public preferredCurrency: string
-  private services: CwiExternalServices;
+  private services: CwiExternalServices
 
   constructor() {
     this.services = new CwiExternalServices(CwiExternalServices.createDefaultOptions())
@@ -26,27 +18,37 @@ export class CurrencyConverter {
     this.preferredCurrency = 'USD'
   }
 
+  /**
+   * Initializes the currency converter by fetching
+   * - the currency exchange rates
+   * - the user's preferred currency
+   * - and set's an interval to keep the exchange rate updated.
+   * TODO: Test interval updates when used in a React UI
+   */
   async initialize(): Promise<void> {
-    await this.fetchExchangeRates();
+    await this.fetchExchangeRates()
     this.preferredCurrency = await getPreferredCurrency({})
     // Start a timer to update rates periodically
-    setInterval(() => this.fetchExchangeRates(), EXCHANGE_RATE_UPDATE_INTERVAL);
+    setInterval(() => this.fetchExchangeRates(), EXCHANGE_RATE_UPDATE_INTERVAL)
   }
 
-  getCurrencySymbol() {
+  /**
+   * @returns - the symbol associated with a user's preferred currency
+   */
+  getCurrencySymbol(): string {
     const symbolMap = {
       USD: '$',
       GBP: '£',
       EUR: '€',
       BSV: 'BSV',
       SATS: 'SATS'
-    };
-    return symbolMap[this.preferredCurrency] || this.preferredCurrency;
+    }
+    return symbolMap[this.preferredCurrency] || this.preferredCurrency
   }
 
   /**
    * Fetch the exchange rates for usdPerBSV, gbpPerUsd, and eurPerUsd
-   * @returns 
+   * @returns {Promise<ExchangeRates>}
    */
   async fetchExchangeRates(): Promise<ExchangeRates> {
     try {
@@ -63,18 +65,18 @@ export class CurrencyConverter {
   }
 
   /**
-   * Converts currency based on user's preferences
-   * @param currency 
-   * @param formatOptions 
+   * Converts currency amount based on user's preferences
+   * @param {string} amount - the currency to convert
+   * @param {FormatOptions} formatOptions 
    * @returns 
    */
-  async convertCurrency(currency: string, formatOptions?: FormatOptions) {
+  async convertCurrency(amount: string, formatOptions?: FormatOptions) {
     const preferredCurrency = await getPreferredCurrency({}) // TODO: Fix params
-    let amount = parseFloat(currency.replace(/[^0-9.-]+/g, ""))
-    let inputCurrency = currency.replace(/[\d.,\s]+/g, '').trim()
-    inputCurrency = inputCurrency || (currency.includes('.') ? 'BSV' : 'SATS')
+    let parsedAmount = parseFloat(amount.replace(/[^0-9.-]+/g, ""))
+    let inputCurrency = amount.replace(/[\d.,\s]+/g, '').trim()
+    inputCurrency = inputCurrency || (amount.includes('.') ? 'BSV' : 'SATS')
 
-    let amountInUsd = this.convertToUsd(amount, inputCurrency)
+    let amountInUsd = this.convertToUsd(parsedAmount, inputCurrency)
     if (amountInUsd === null) {
       throw new Error('Unsupported currency')
     }
@@ -83,26 +85,30 @@ export class CurrencyConverter {
     if (finalAmount === null) {
       throw new Error('Unsupported preferred currency')
     }
-    console.log('final', finalAmount)
     return formatAmountWithCurrency(finalAmount, preferredCurrency, formatOptions)
   }
 
+  /**
+   * Convert an amount given in any of the supported currencies to an amount in satoshis
+   * @param amount 
+   * @returns 
+   */
   async convertToSatoshis(amount: number): Promise<number | null> {
-    const preferredCurrency = await getPreferredCurrency({});
-    const amountInUsd = this.convertToUsd(amount, preferredCurrency);
+    const preferredCurrency = await getPreferredCurrency({})
+    const amountInUsd = this.convertToUsd(amount, preferredCurrency)
     if (amountInUsd === null) {
-      console.error('Unsupported currency for conversion to USD:', preferredCurrency);
-      return null;
+      console.error('Unsupported currency for conversion to USD:', preferredCurrency)
+      return null
     }
     // Now convert USD to SATS using the usdPerBsv exchange rate
     const satoshis = Math.ceil((amountInUsd / this.exchangeRates.usdPerBsv) * 100_000_000)
-    return satoshis;
+    return satoshis
   }
 
   /**
    * Converts amount to USD
-   * @param amount 
-   * @param currency 
+   * @param {number} amount 
+   * @param {string} currency - currency type for the amount given
    * @returns 
    */
   convertToUsd(amount: number, currency: string): number | null {
@@ -124,8 +130,8 @@ export class CurrencyConverter {
 
   /**
    * Converts amount from USD to some other amount
-   * @param amountInUsd 
-   * @param currency 
+   * @param {number} amountInUsd 
+   * @param {string} currency - currency type for the amount given
    * @returns 
    */
   convertFromUsd(amountInUsd: number, currency: string): number | null {

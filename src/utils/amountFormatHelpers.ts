@@ -1,47 +1,30 @@
 export function formatAmountWithCurrency(amount: number, currency: string, options?: { decimalPlaces?: number, useCommas?: boolean, useUnderscores?: boolean }): string {
-  // Determine the default number of decimal places if not specified
-  let decimals = options?.decimalPlaces  // Respect explicitly set decimal places
-  if (decimals === undefined) {
-    // Default handling based on the type of currency
-    if (currency === 'BSV' || currency === 'SATS') {
-      decimals = 8  // Assume a high precision default for cryptocurrencies
-    } else {
-      decimals = 2  // Standard for most fiat currencies
-    }
-  }
+  const { decimalPlaces, useCommas = true, useUnderscores = false } = options || {}
+  const decimals = decimalPlaces ?? (['BSV', 'SATS'].includes(currency) ? 8 : 2)
 
-  // Formatting the amount to the specified number of decimals
+  // Format the amount
   let formattedAmount = amount.toFixed(decimals)
 
-  let parts = formattedAmount.split('.')
-  let integerPart = parts[0]
-  let decimalPart = parts[1]
+  // Split into integer and decimal parts
+  let [integerPart, decimalPart] = formattedAmount.split('.')
 
-  // Apply comma or underscore formatting to the integer part
-  if (options?.useUnderscores) {
+  // Format the integer part
+  if (useUnderscores) {
     integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '_')
-  } else if (options?.useCommas !== false) {
+  } else if (useCommas) {
     integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   }
 
-  // Ensure that we do not show decimal places if decimalPart is '00' or if decimals is 0
-  let formatted = (decimalPart && decimals > 0 && parseInt(decimalPart, 10) !== 0) ? `${integerPart}.${decimalPart}` : integerPart
-  return formatCurrency(formatted, currency)
-}
+  // Construct the full number string with decimal part conditionally added
+  let formatted = decimalPart && parseInt(decimalPart, 10) !== 0 ? `${integerPart}.${decimalPart}` : integerPart
 
-export function formatCurrency(formattedAmount: string, currency: string): string {
+  // Append currency symbol or suffix
   switch (currency) {
-    case 'USD':
-      return `$${formattedAmount}`
-    case 'GBP':
-      return `£${formattedAmount}`
-    case 'EUR':
-      return `€${formattedAmount}`
-    case 'SATS':
-      return `${formattedAmount} satoshis`
-    case 'BSV':
-      return `${formattedAmount} BSV`
-    default:
-      return formattedAmount
+    case 'USD': return `$${formatted}`
+    case 'GBP': return `£${formatted}`
+    case 'EUR': return `€${formatted}`
+    case 'SATS': return `${formatted} satoshis`
+    case 'BSV': return `${formatted} BSV`
+    default: return formatted
   }
 }

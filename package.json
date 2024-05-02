@@ -1,7 +1,7 @@
 {
   "name": "amountinator",
   "version": "0.1.1",
-  "description": "Currency amount components and conversion",
+  "description": "Currency amount conversion",
   "author": "Peer-to-peer Privacy Systems Research, LLC",
   "license": "Open BSV License",
   "main": "./out/src/index.js",
