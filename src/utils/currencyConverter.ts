@@ -13,7 +13,6 @@ export class CurrencyConverter {
   private services: CwiExternalServices
 
   constructor() {
-    // Private to prevent direct construction calls
     this.services = new CwiExternalServices(CwiExternalServices.createDefaultOptions())
     this.exchangeRates = { usdPerBsv: 0, gbpPerUsd: 0, eurPerUsd: 0 }
     this.preferredCurrency = 'USD'
