@@ -12,10 +12,17 @@ export class CurrencyConverter {
   public preferredCurrency: string
   private services: CwiExternalServices
 
-  constructor() {
+  private constructor() {
+    // Private to prevent direct construction calls
     this.services = new CwiExternalServices(CwiExternalServices.createDefaultOptions())
     this.exchangeRates = { usdPerBsv: 0, gbpPerUsd: 0, eurPerUsd: 0 }
     this.preferredCurrency = 'USD'
+  }
+
+  static async createInstance(): Promise<CurrencyConverter> {
+    const instance = new CurrencyConverter()
+    await instance.initialize()
+    return instance
   }
 
   /**
@@ -25,7 +32,7 @@ export class CurrencyConverter {
    * - and set's an interval to keep the exchange rate updated.
    * TODO: Test interval updates when used in a React UI
    */
-  async initialize(): Promise<void> {
+  private async initialize(): Promise<void> {
     await this.fetchExchangeRates()
     this.preferredCurrency = await getPreferredCurrency({})
     // Start a timer to update rates periodically
@@ -94,10 +101,9 @@ export class CurrencyConverter {
    * @returns 
    */
   async convertToSatoshis(amount: number): Promise<number | null> {
-    const preferredCurrency = await getPreferredCurrency({})
-    const amountInUsd = this.convertToUsd(amount, preferredCurrency)
+    const amountInUsd = this.convertToUsd(amount, this.preferredCurrency)
     if (amountInUsd === null) {
-      console.error('Unsupported currency for conversion to USD:', preferredCurrency)
+      console.error('Unsupported currency for conversion to USD:', this.preferredCurrency)
       return null
     }
     // Now convert USD to SATS using the usdPerBsv exchange rate
