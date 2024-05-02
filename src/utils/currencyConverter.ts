@@ -15,7 +15,7 @@ interface FormatOptions {
   useUnderscores?: boolean
 }
 
-class CurrencyConverter {
+export class CurrencyConverter {
   public exchangeRates: ExchangeRates
   public preferredCurrency: string
   private services: CwiExternalServices;
@@ -145,5 +145,3 @@ class CurrencyConverter {
     }
   }
 }
-
-export default CurrencyConverter
