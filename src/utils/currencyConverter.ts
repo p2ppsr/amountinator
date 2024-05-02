@@ -71,11 +71,12 @@ export class CurrencyConverter {
    * @param {FormatOptions} formatOptions 
    * @returns 
    */
-  async convertCurrency(amount: string, formatOptions?: FormatOptions) {
+  async convertCurrency(amount: number | string, formatOptions?: FormatOptions) {
+    const amountAsString = amount.toString()
     const preferredCurrency = await getPreferredCurrency({}) // TODO: Fix params
-    let parsedAmount = parseFloat(amount.replace(/[^0-9.-]+/g, ""))
-    let inputCurrency = amount.replace(/[\d.,\s]+/g, '').trim()
-    inputCurrency = inputCurrency || (amount.includes('.') ? 'BSV' : 'SATS')
+    let parsedAmount = parseFloat(amountAsString.replace(/[^0-9.-]+/g, ""))
+    let inputCurrency = amountAsString.replace(/[\d.,\s]+/g, '').trim()
+    inputCurrency = inputCurrency || (amountAsString.includes('.') ? 'BSV' : 'SATS')
 
     let amountInUsd = this.convertToUsd(parsedAmount, inputCurrency)
     if (amountInUsd === null) {
