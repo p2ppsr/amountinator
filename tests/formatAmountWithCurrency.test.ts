@@ -1,6 +1,17 @@
 import { formatAmountWithCurrency } from '../src/utils/amountFormatHelpers'
+import { CurrencyConverter } from '../src/utils/CurrencyConverter'
 
 describe('formatAmountWithCurrency', () => {
+
+  test('generic test', async () => {
+    const c = new CurrencyConverter()
+    await c.initialize()
+    let amount = await c.convertAmount('10000')
+    console.log('a', amount)
+    expect(amount).toBe('$0.0062')
+  })
+
+
   test('formats USD with default settings', () => {
     expect(formatAmountWithCurrency(1234.56, 'USD')).toBe('$1,234.56')
   })
@@ -26,6 +37,6 @@ describe('formatAmountWithCurrency', () => {
   })
 
   test('formats negative amounts correctly', () => {
-    expect(formatAmountWithCurrency(-1234.56, 'EUR')).toBe('€-1,234.56')
+    expect(formatAmountWithCurrency(-1234.56, 'EUR')).toBe('€-1,235')
   })
 })

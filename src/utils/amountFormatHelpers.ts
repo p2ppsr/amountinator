@@ -1,8 +1,22 @@
 export function formatAmountWithCurrency(amount: number, currency: string, options?: { decimalPlaces?: number, useCommas?: boolean, useUnderscores?: boolean }): string {
   const { decimalPlaces, useCommas = true, useUnderscores = false } = options || {}
-  const decimals = decimalPlaces ?? (['BSV', 'SATS'].includes(currency) ? 8 : 2)
 
-  // Format the amount
+  let decimals
+  if (decimalPlaces !== undefined) {
+    decimals = decimalPlaces
+  } else {
+    if (amount < 1 && amount !== 0) {
+      // Calculate precision needed to show at least one significant figure
+      decimals = Math.max(2, -Math.floor(Math.log10(amount)) + 1) // One less to round it off
+      // Cap the maximum number of decimal places for very small amounts
+      decimals = Math.min(decimals, 4) // This caps the decimals to 4, adjust as necessary
+    } else {
+      // Default precision for larger amounts or specific currencies
+      decimals = (['BSV', 'SATS'].includes(currency) ? 8 : 2)
+    }
+  }
+
+  // Format the amount with determined decimal places
   let formattedAmount = amount.toFixed(decimals)
 
   // Split into integer and decimal parts
