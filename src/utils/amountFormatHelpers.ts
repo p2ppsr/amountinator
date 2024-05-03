@@ -28,18 +28,18 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
     formattedAmount: finalFormatted
   }
 
+  switch (currency) {
+    case 'USD': finalFormatted = `$${finalFormatted}`; break
+    case 'GBP': finalFormatted = `£${finalFormatted}`; break
+    case 'EUR': finalFormatted = `€${finalFormatted}`; break
+    case 'SATS': finalFormatted += ' satoshis'; break
+    case 'BSV': finalFormatted += ' BSV'; break
+  }
+
   // Only add hoverText if the amount is less than 0.01
   if (amount < 0.01) {
     result.formattedAmount = '< $0.01'
     result.hoverText = formattedAmount
-  }
-
-  switch (currency) {
-    case 'USD': result.formattedAmount = `$${finalFormatted}`; break
-    case 'GBP': result.formattedAmount = `£${finalFormatted}`; break
-    case 'EUR': result.formattedAmount = `€${finalFormatted}`; break
-    case 'SATS': result.formattedAmount += ' satoshis'; break
-    case 'BSV': result.formattedAmount += ' BSV'; break
   }
 
   return result
