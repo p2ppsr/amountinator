@@ -66,25 +66,21 @@ export class CurrencyConverter {
 
   /**
    * Converts currency amount based on user's preferences
-   * @param {string} amount - the currency to convert
+   * @param {number | string} amount - the currency to convert
    * @param {FormatOptions} formatOptions 
    * @returns 
    */
-  async convertCurrency(amount: number | string, formatOptions?: FormatOptions) {
+  async convertAmount(amount: number | string, formatOptions?: FormatOptions) {
     const amountAsString = amount.toString()
     const preferredCurrency = await getPreferredCurrency({}) // TODO: Fix params
     let parsedAmount = parseFloat(amountAsString.replace(/[^0-9.-]+/g, ""))
     let inputCurrency = amountAsString.replace(/[\d.,\s]+/g, '').trim()
     inputCurrency = inputCurrency || (amountAsString.includes('.') ? 'BSV' : 'SATS')
 
-    let amountInUsd = this.convertToUsd(parsedAmount, inputCurrency)
-    if (amountInUsd === null) {
-      throw new Error('Unsupported currency')
-    }
-
-    let finalAmount = this.convertFromUsd(amountInUsd, preferredCurrency)
+    // Use convertCurrency to directly convert from the input currency to the preferred currency
+    let finalAmount = this.convertCurrency(parsedAmount, inputCurrency, preferredCurrency)
     if (finalAmount === null) {
-      throw new Error('Unsupported preferred currency')
+      throw new Error('Unsupported currency or conversion error')
     }
     return formatAmountWithCurrency(finalAmount, preferredCurrency, formatOptions)
   }
@@ -95,47 +91,52 @@ export class CurrencyConverter {
    * @returns 
    */
   async convertToSatoshis(amount: number): Promise<number | null> {
-    const amountInUsd = this.convertToUsd(amount, this.preferredCurrency)
-    if (amountInUsd === null) {
-      console.error('Unsupported currency for conversion to USD:', this.preferredCurrency)
+    // Directly convert the amount from the preferred currency to SATS
+    const satoshis = this.convertCurrency(amount, this.preferredCurrency, 'SATS')
+    if (satoshis === null) {
+      console.error('Unsupported currency or conversion error:', this.preferredCurrency)
       return null
     }
-    // Now convert USD to SATS using the usdPerBsv exchange rate
-    const satoshis = Math.ceil((amountInUsd / this.exchangeRates.usdPerBsv) * 100_000_000)
-    return satoshis
+    return Math.ceil(satoshis)
   }
 
   /**
-   * Converts amount to USD
-   * @param {number} amount 
-   * @param {string} currency - currency type for the amount given
-   * @returns 
+   * Converts a given amount from one currency to another.
+   * @param {number} amount - The amount to be converted.
+   * @param {string} fromCurrency - The currency code of the amount being converted.
+   * @param {string} toCurrency - The currency code to convert the amount to.
+   * @returns {number | null} - The converted amount or null if the conversion cannot be performed.
    */
-  convertToUsd(amount: number, currency: string): number | null {
-    switch (currency.toUpperCase()) {
-      case 'SATS':
-        return (amount / 100_000_000) * this.exchangeRates.usdPerBsv
-      case 'BSV':
-        return amount * this.exchangeRates.usdPerBsv
-      case 'GBP':
-        return amount / this.exchangeRates.gbpPerUsd
-      case 'EUR':
-        return amount / this.exchangeRates.eurPerUsd
-      case 'USD':
-        return amount
-      default:
-        return null
+  convertCurrency(amount: number, fromCurrency: string, toCurrency: string): number | null {
+    if (fromCurrency.toUpperCase() === toCurrency.toUpperCase()) {
+      return amount
     }
-  }
 
-  /**
-   * Converts amount from USD to some other amount
-   * @param {number} amountInUsd 
-   * @param {string} currency - currency type for the amount given
-   * @returns 
-   */
-  convertFromUsd(amountInUsd: number, currency: string): number | null {
-    switch (currency) {
+    let amountInUsd: number | null
+
+    // Convert from the original currency to USD
+    switch (fromCurrency.toUpperCase()) {
+      case 'SATS':
+        amountInUsd = (amount / 100_000_000) * this.exchangeRates.usdPerBsv
+        break
+      case 'BSV':
+        amountInUsd = amount * this.exchangeRates.usdPerBsv
+        break
+      case 'GBP':
+        amountInUsd = amount / this.exchangeRates.gbpPerUsd
+        break
+      case 'EUR':
+        amountInUsd = amount / this.exchangeRates.eurPerUsd
+        break
+      case 'USD':
+        amountInUsd = amount
+        break
+      default:
+        throw new Error('Currency not supported!')
+    }
+
+    // Convert from USD to the target currency
+    switch (toCurrency.toUpperCase()) {
       case 'GBP':
         return amountInUsd * this.exchangeRates.gbpPerUsd
       case 'EUR':
@@ -147,7 +148,7 @@ export class CurrencyConverter {
       case 'USD':
         return amountInUsd
       default:
-        return null
+        throw new Error('Currency not supported!')
     }
   }
 }
