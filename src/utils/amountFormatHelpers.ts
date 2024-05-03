@@ -39,7 +39,7 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
   // Only add hoverText if the amount is less than 0.01
   if (amount < 0.01) {
     result.formattedAmount = '< $0.01'
-    result.hoverText = formattedAmount
+    result.hoverText = finalFormatted
   }
 
   return result
