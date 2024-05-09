@@ -33,6 +33,6 @@
   },
   "dependencies": {
     "@babbage/sdk-ts": "^0.2.33",
-    "cwi-external-services": "^0.4.33"
+    "cwi-external-services": "^0.4.34"
   }
 }
