@@ -32,7 +32,7 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "@babbage/sdk-ts": "^0.2.39",
-    "cwi-external-services": "^0.4.37"
+    "@babbage/sdk-ts": "^0.2.42",
+    "cwi-external-services": "^0.4.40"
   }
 }
