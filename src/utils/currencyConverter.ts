@@ -1,8 +1,8 @@
 import { WalletClient } from '@bsv/sdk'
 import { formatAmountWithCurrency } from './amountFormatHelpers'
 import { ExchangeRates, FormatOptions } from '../types'
-import { Services } from '@bsv/wallet-toolbox'
-import { WalletSettingsManager } from '@bsv/wallet-toolbox/out/src/WalletSettingsManager'
+import { Services } from '@bsv/wallet-toolbox-client'
+import { WalletSettingsManager } from '@bsv/wallet-toolbox-client/out/src/WalletSettingsManager'
 const EXCHANGE_RATE_UPDATE_INTERVAL = 5 * 60 * 1000
 
 const getPreferredCurrency = async (): Promise<string> => {
