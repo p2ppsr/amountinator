@@ -1,8 +1,15 @@
-import { getPreferredCurrency } from '@babbage/sdk-ts'
-import { CwiExternalServices } from 'cwi-external-services'
+import { WalletClient } from '@bsv/sdk'
 import { formatAmountWithCurrency } from './amountFormatHelpers'
 import { ExchangeRates, FormatOptions } from '../types'
+import { Services } from '@bsv/wallet-toolbox'
+import { WalletSettingsManager } from '@bsv/wallet-toolbox/out/src/WalletSettingsManager'
 const EXCHANGE_RATE_UPDATE_INTERVAL = 5 * 60 * 1000
+
+const getPreferredCurrency = async (): Promise<string> => {
+  const settingsManager = new WalletSettingsManager(new WalletClient())
+  const settings = await settingsManager.get()
+  return settings.currency ?? 'SATS'
+}
 
 /**
  * Converts currency amounts to user's preferred currency, and supports converting all supported currency types to satoshis.
@@ -10,10 +17,10 @@ const EXCHANGE_RATE_UPDATE_INTERVAL = 5 * 60 * 1000
 export class CurrencyConverter {
   public exchangeRates: ExchangeRates
   public preferredCurrency: string
-  private services: CwiExternalServices
+  private services: Services
 
   constructor() {
-    this.services = new CwiExternalServices(CwiExternalServices.createDefaultOptions())
+    this.services = new Services('main')
     this.exchangeRates = { usdPerBsv: 0, gbpPerUsd: 0, eurPerUsd: 0 }
     this.preferredCurrency = 'USD'
   }
@@ -27,7 +34,7 @@ export class CurrencyConverter {
    */
   async initialize(): Promise<void> {
     await this.fetchExchangeRates()
-    this.preferredCurrency = await getPreferredCurrency({})
+    this.preferredCurrency = await getPreferredCurrency()
     // Start a timer to update rates periodically
     setInterval(() => this.fetchExchangeRates(), EXCHANGE_RATE_UPDATE_INTERVAL)
   }
@@ -72,7 +79,7 @@ export class CurrencyConverter {
    */
   async convertAmount(amount: number | string, formatOptions?: FormatOptions) {
     const amountAsString = amount.toString()
-    const preferredCurrency = await getPreferredCurrency({}) // TODO: Fix params
+    const preferredCurrency = await getPreferredCurrency()
     let parsedAmount = parseFloat(amountAsString.replace(/[^0-9.-]+/g, ""))
     let inputCurrency = amountAsString.replace(/[\d.,\s]+/g, '').trim()
     inputCurrency = inputCurrency || (amountAsString.includes('.') ? 'BSV' : 'SATS')

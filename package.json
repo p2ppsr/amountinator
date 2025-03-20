@@ -1,6 +1,6 @@
 {
   "name": "amountinator",
-  "version": "0.1.33",
+  "version": "0.2.0",
   "description": "Currency amount conversion",
   "author": "Peer-to-peer Privacy Systems Research, LLC",
   "license": "Open BSV License",
@@ -32,7 +32,7 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "@babbage/sdk-ts": "^0.2.54",
-    "cwi-external-services": "^0.4.59"
+    "@bsv/sdk": "^1.4.9",
+    "@bsv/wallet-toolbox": "^1.2.20"
   }
 }
