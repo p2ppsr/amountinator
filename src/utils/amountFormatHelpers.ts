@@ -63,7 +63,11 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
   // Add hoverText if applicable
   if (amount < 0.01) {
     result.hoverText = formattedAmount
-    result.formattedAmount = '< $0.01'
+    if (currency === 'BSV') {
+      result.formattedAmount = `< 0.01${currencySymbol}`
+    } else {
+      result.formattedAmount = `< ${currencySymbol}0.01`
+    }
   }
 
   return result
