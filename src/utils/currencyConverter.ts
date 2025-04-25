@@ -3,13 +3,7 @@ import { formatAmountWithCurrency } from './amountFormatHelpers'
 import { ExchangeRates, FormatOptions } from '../types'
 import { Services } from '@bsv/wallet-toolbox-client'
 import { WalletSettingsManager } from '@bsv/wallet-toolbox-client/out/src/WalletSettingsManager'
-const EXCHANGE_RATE_UPDATE_INTERVAL = 5 * 60 * 1000
-
-const getPreferredCurrency = async (): Promise<string> => {
-  const settingsManager = new WalletSettingsManager(new WalletClient())
-  const settings = await settingsManager.get()
-  return settings.currency ?? 'SATS'
-}
+const DEFAULT_REFRESH_INTERVAL = 5 * 60 * 1000
 
 /**
  * Converts currency amounts to user's preferred currency, and supports converting all supported currency types to satoshis.
@@ -19,7 +13,19 @@ export class CurrencyConverter {
   public preferredCurrency: string
   private services: Services
 
-  constructor() {
+  private readonly refreshInterval: number
+  private lastRateFetch = 0
+  private lastCurrencyFetch = 0
+  private ratePromise: Promise<ExchangeRates> | null = null
+  private currencyPromise: Promise<string> | null = null
+
+  private refreshTimer?: ReturnType<typeof setInterval>
+
+  /** 
+   * @param refreshInterval  How often to pull new rates (ms), if 0, it never auto-refreshes
+   */
+  constructor(refreshInterval: number = DEFAULT_REFRESH_INTERVAL) {
+    this.refreshInterval = refreshInterval > 0 ? refreshInterval : 0
     this.services = new Services('main')
     this.exchangeRates = { usdPerBsv: 0, gbpPerUsd: 0, eurPerUsd: 0 }
     this.preferredCurrency = 'USD'
@@ -33,10 +39,16 @@ export class CurrencyConverter {
    * TODO: Test interval updates when used in a React UI
    */
   async initialize(): Promise<void> {
-    await this.fetchExchangeRates()
-    this.preferredCurrency = await getPreferredCurrency()
-    // Start a timer to update rates periodically
-    setInterval(() => this.fetchExchangeRates(), EXCHANGE_RATE_UPDATE_INTERVAL)
+    await Promise.all([this.fetchExchangeRates(), this.refreshPreferredCurrency()])
+
+    // only start timer when refreshInterval > 0
+    if (this.refreshInterval > 0) {
+      this.refreshTimer = setInterval( () => this.fetchExchangeRates(true), this.refreshInterval)
+    }
+  }
+
+  dispose() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer)
   }
 
   /**
@@ -57,19 +69,51 @@ export class CurrencyConverter {
    * Fetch the exchange rates for usdPerBSV, gbpPerUsd, and eurPerUsd
    * @returns {Promise<ExchangeRates>}
    */
-  async fetchExchangeRates(): Promise<ExchangeRates> {
+  async fetchExchangeRates(force = false): Promise<ExchangeRates> {
     try {
-      const usdPerBsv = await this.services.getBsvExchangeRate()
-      const gbpPerUsd = await this.services.getFiatExchangeRate('GBP')
-      const eurPerUsd = await this.services.getFiatExchangeRate('EUR')
+      const now = Date.now()
+      if (!force && now - this.lastRateFetch < this.refreshInterval) {
+        return this.exchangeRates
+      }
+      if (this.ratePromise) return this.ratePromise
 
-      this.exchangeRates = { usdPerBsv, gbpPerUsd, eurPerUsd }
-      return this.exchangeRates
+      this.ratePromise = (async () => {
+        const usdPerBsv = await this.services.getBsvExchangeRate()
+        const gbpPerUsd = await this.services.getFiatExchangeRate('GBP')
+        const eurPerUsd = await this.services.getFiatExchangeRate('EUR')
+
+        this.exchangeRates = { usdPerBsv, gbpPerUsd, eurPerUsd }
+        this.lastRateFetch = Date.now()
+        this.ratePromise = null
+        return this.exchangeRates
+      })()
+      return this.ratePromise
     } catch (err) {
       console.error(err)
       throw new Error('Failed to fetch exchange rates.')
     }
   }
+
+  private async refreshPreferredCurrency(): Promise<string> {
+    const now = Date.now()
+    if (now - this.lastCurrencyFetch < this.refreshInterval) {
+      return this.preferredCurrency
+    }
+    if (this.currencyPromise) return this.currencyPromise
+  
+    this.currencyPromise = (async () => {
+      const settingsManager = new WalletSettingsManager(new WalletClient())
+      const newCurrency = (await settingsManager.get()).currency ?? 'SATS'
+      if (newCurrency !== this.preferredCurrency) {
+        this.preferredCurrency = newCurrency
+      }
+      this.lastCurrencyFetch = Date.now()
+      this.currencyPromise = null
+      return this.preferredCurrency
+    })()
+  
+    return this.currencyPromise
+  }  
 
   /**
    * Converts currency amount based on user's preferences
@@ -78,18 +122,18 @@ export class CurrencyConverter {
    * @returns 
    */
   async convertAmount(amount: number | string, formatOptions?: FormatOptions) {
+    await this.refreshPreferredCurrency()
     const amountAsString = amount.toString()
-    const preferredCurrency = await getPreferredCurrency()
     let parsedAmount = parseFloat(amountAsString.replace(/[^0-9.-]+/g, ""))
     let inputCurrency = amountAsString.replace(/[\d.,\s]+/g, '').trim()
-    inputCurrency = inputCurrency || (amountAsString.includes('.') ? 'BSV' : 'SATS')
+    inputCurrency ||= (amountAsString.includes('.') ? 'BSV' : 'SATS')
 
     // Use convertCurrency to directly convert from the input currency to the preferred currency
-    let finalAmount = this.convertCurrency(parsedAmount, inputCurrency, preferredCurrency)
+    let finalAmount = this.convertCurrency(parsedAmount, inputCurrency, this.preferredCurrency)
     if (finalAmount === null) {
       throw new Error('Unsupported currency or conversion error')
     }
-    return formatAmountWithCurrency(finalAmount, preferredCurrency, formatOptions)
+    return formatAmountWithCurrency(finalAmount, this.preferredCurrency, formatOptions)
   }
 
   /**

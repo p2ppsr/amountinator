@@ -31,8 +31,13 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
   let decimals = decimalPlaces ?? ((amount < 1 && amount !== 0) ? Math.min(Math.max(2, -Math.floor(Math.log10(amount)) + 1), 4) : (['BSV', 'SATS'].includes(currency) ? 8 : 2))
 
   // Format the amount with determined decimal places
-  let formattedAmount = parseFloat(amount.toFixed(decimals)).toString()
-  let [integerPart, decimalPart] = formattedAmount.split('.')
+  let fixed = amount.toFixed(decimals)
+
+  if (decimalPlaces === undefined) {
+    fixed = fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '')
+  }
+
+  let [integerPart, decimalPart] = fixed.split('.')
 
   // Format the integer part with underscores or commas
   if (useUnderscores) {
@@ -42,32 +47,21 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
   }
 
   // Construct the full number string with decimal part conditionally added
-  formattedAmount = decimalPart ? `${integerPart}.${decimalPart}` : integerPart
+  let formattedAmount = decimalPart ? `${integerPart}.${decimalPart}` : integerPart
 
   // Prepare the currency symbol or suffix
-  let currencySymbol = ''
-  switch (currency) {
-    case 'USD': currencySymbol = '$'; break
-    case 'GBP': currencySymbol = '£'; break
-    case 'EUR': currencySymbol = '€'; break
-    case 'SATS': currencySymbol = ' satoshis'; break
-    case 'BSV': currencySymbol = ' BSV'; break
-  }
+  const symbols: Record<string, string> = { USD: '$', GBP: '£', EUR: '€' }
+  formattedAmount =
+    currency === 'SATS' || currency === 'BSV'
+      ? formattedAmount + (currency === 'SATS' ? ' satoshis' : ' BSV')
+      : (symbols[currency] || '') + formattedAmount
 
-  // Add the currency symbol or suffix
-  formattedAmount = currency === 'SATS' || currency === 'BSV' ? formattedAmount + currencySymbol : currencySymbol + formattedAmount
-
-  // Construct result object
-  let result: { formattedAmount: string, hoverText?: string } = { formattedAmount }
-
-  // Add hoverText if applicable
+  // build result with hover text
+  const result: { formattedAmount: string; hoverText?: string } = { formattedAmount }
   if (amount < 0.01) {
     result.hoverText = formattedAmount
-    if (currency === 'BSV') {
-      result.formattedAmount = `< 0.01${currencySymbol}`
-    } else {
-      result.formattedAmount = `< ${currencySymbol}0.01`
-    }
+    result.formattedAmount =
+      currency === 'BSV' ? `< 0.01 BSV` : `< ${(symbols[currency] || '')}0.01`
   }
 
   return result
