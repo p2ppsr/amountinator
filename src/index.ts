@@ -1,2 +1,2 @@
-export { CurrencyConverter } from './utils/CurrencyConverter'
+export { CurrencyConverter } from './utils/currencyConverter'
 export { formatAmountWithCurrency } from './utils/amountFormatHelpers'
