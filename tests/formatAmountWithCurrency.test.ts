@@ -1,5 +1,5 @@
 import { formatAmountWithCurrency } from '../src/utils/amountFormatHelpers'
-import { CurrencyConverter } from '../src/utils/CurrencyConverter'
+import { CurrencyConverter } from '../src/utils/currencyConverter'
 
 describe('formatAmountWithCurrency', () => {
 

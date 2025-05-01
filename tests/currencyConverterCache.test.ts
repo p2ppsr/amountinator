@@ -1,4 +1,4 @@
-import { CurrencyConverter } from '../src/utils/CurrencyConverter'
+import { CurrencyConverter } from '../src/utils/currencyConverter'
 import { formatAmountWithCurrency } from '../src/utils/amountFormatHelpers'
 
 const getBsvExchangeRateMock = jest.fn()
