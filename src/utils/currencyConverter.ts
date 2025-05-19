@@ -103,6 +103,7 @@ export class CurrencyConverter {
   
     this.currencyPromise = (async () => {
       const settingsManager = new WalletSettingsManager(new WalletClient())
+
       const newCurrency = (await settingsManager.get()).currency ?? 'SATS'
       if (newCurrency !== this.preferredCurrency) {
         this.preferredCurrency = newCurrency
