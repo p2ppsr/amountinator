@@ -1,6 +1,6 @@
 {
   "name": "amountinator",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Currency amount conversion",
   "author": "Peer-to-peer Privacy Systems Research, LLC",
   "license": "Open BSV License",
@@ -36,8 +36,7 @@
     "@bsv/wallet-toolbox-client": "^1.3.6"
   },
   "exports": {
-  "./utils/amountFormatHelpers": "./src/utils/amountFormatHelpers.ts",
-  "./utils/currencyConverter": "./src/utils/currencyConverter.ts"
-}
-
+    "./utils/amountFormatHelpers": "./src/utils/amountFormatHelpers.ts",
+    "./utils/currencyConverter": "./src/utils/currencyConverter.ts"
+  }
 }
