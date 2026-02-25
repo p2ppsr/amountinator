@@ -50,18 +50,36 @@ export function formatAmountWithCurrency(amount: number, currency: string, optio
   let formattedAmount = decimalPart ? `${integerPart}.${decimalPart}` : integerPart
 
   // Prepare the currency symbol or suffix
-  const symbols: Record<string, string> = { USD: '$', GBP: '£', EUR: '€' }
+  const symbols: Record<string, string> = {
+    USD: '$',
+    GBP: '£',
+    EUR: '€',
+    JPY: '¥',
+    CNY: '¥',
+    INR: '₹',
+    AUD: 'A$',
+    CAD: 'C$',
+    CHF: 'CHF ',
+    HKD: 'HK$',
+    SGD: 'S$',
+    NZD: 'NZ$',
+    SEK: 'SEK ',
+    NOK: 'NOK ',
+    MXN: 'MX$'
+  }
   formattedAmount =
     currency === 'SATS' || currency === 'BSV'
       ? formattedAmount + (currency === 'SATS' ? ' satoshis' : ' BSV')
-      : (symbols[currency] || '') + formattedAmount
+      : (symbols[currency] || `${currency} `) + formattedAmount
 
   // build result with hover text
   const result: { formattedAmount: string; hoverText?: string } = { formattedAmount }
   if (amount < 0.01) {
     result.hoverText = formattedAmount
     result.formattedAmount =
-      currency === 'BSV' ? `< 0.01 BSV` : `< ${(symbols[currency] || '')}0.01`
+      currency === 'BSV'
+        ? `< 0.01 BSV`
+        : `< ${(symbols[currency] || `${currency} `)}0.01`
   }
 
   return result

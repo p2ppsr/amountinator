@@ -2,12 +2,12 @@ import { CurrencyConverter } from '../src/utils/currencyConverter'
 import { formatAmountWithCurrency } from '../src/utils/amountFormatHelpers'
 
 const getBsvExchangeRateMock = jest.fn()
-const getFiatExchangeRateMock = jest.fn()
+const getFiatExchangeRatesMock = jest.fn()
 
 jest.mock('@bsv/wallet-toolbox-client', () => ({
     Services: jest.fn().mockImplementation(() => ({
         getBsvExchangeRate: getBsvExchangeRateMock,
-        getFiatExchangeRate: getFiatExchangeRateMock
+        getFiatExchangeRates: getFiatExchangeRatesMock
     }))
 }))
 
@@ -31,7 +31,11 @@ describe('CurrencyConverter cache behaviour', () => {
             .mockResolvedValue(100)
 
         // fiat rates are fine staying constant for this test
-        getFiatExchangeRateMock.mockResolvedValue(1)
+        getFiatExchangeRatesMock.mockResolvedValue({
+            timestamp: new Date(),
+            base: 'USD',
+            rates: {}
+        })
     })
 
     afterEach(() => {

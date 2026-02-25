@@ -1,6 +1,12 @@
 import { WalletClient } from '@bsv/sdk'
 import { formatAmountWithCurrency } from './amountFormatHelpers'
-import { ExchangeRates, FormatOptions } from '../types'
+import {
+  ExchangeRates,
+  FiatCurrencyCode,
+  FormatOptions,
+  SUPPORTED_FIAT_CURRENCY_CODES,
+  SupportedCurrencyCode
+} from '../types'
 import { Services } from '@bsv/wallet-toolbox-client'
 import { WalletSettingsManager } from '@bsv/wallet-toolbox-client/out/src/WalletSettingsManager'
 const DEFAULT_REFRESH_INTERVAL = 5 * 60 * 1000
@@ -10,14 +16,14 @@ const DEFAULT_REFRESH_INTERVAL = 5 * 60 * 1000
  */
 export class CurrencyConverter {
   public exchangeRates: ExchangeRates
-  public preferredCurrency: string
+  public preferredCurrency: SupportedCurrencyCode
   private services: Services
 
   private readonly refreshInterval: number
   private lastRateFetch = 0
   private lastCurrencyFetch = 0
   private ratePromise: Promise<ExchangeRates> | null = null
-  private currencyPromise: Promise<string> | null = null
+  private currencyPromise: Promise<SupportedCurrencyCode> | null = null
 
   private refreshTimer?: ReturnType<typeof setInterval>
 
@@ -27,7 +33,12 @@ export class CurrencyConverter {
   constructor(refreshInterval: number = DEFAULT_REFRESH_INTERVAL) {
     this.refreshInterval = refreshInterval > 0 ? refreshInterval : 0
     this.services = new Services('main')
-    this.exchangeRates = { usdPerBsv: 0, gbpPerUsd: 0, eurPerUsd: 0 }
+    this.exchangeRates = {
+      usdPerBsv: 0,
+      fiatPerUsd: Object.fromEntries(
+        SUPPORTED_FIAT_CURRENCY_CODES.map(c => [c, c === 'USD' ? 1 : 0])
+      ) as Record<FiatCurrencyCode, number>
+    }
     this.preferredCurrency = 'USD'
   }
 
@@ -59,6 +70,18 @@ export class CurrencyConverter {
       USD: '$',
       GBP: '£',
       EUR: '€',
+      JPY: '¥',
+      CNY: '¥',
+      INR: '₹',
+      AUD: 'A$',
+      CAD: 'C$',
+      CHF: 'CHF ',
+      HKD: 'HK$',
+      SGD: 'S$',
+      NZD: 'NZ$',
+      SEK: 'SEK ',
+      NOK: 'NOK ',
+      MXN: 'MX$',
       BSV: 'BSV',
       SATS: 'SATS'
     }
@@ -66,7 +89,7 @@ export class CurrencyConverter {
   }
 
   /**
-   * Fetch the exchange rates for usdPerBSV, gbpPerUsd, and eurPerUsd
+   * Fetch the exchange rates for usdPerBSV and supported fiat currencies.
    * @returns {Promise<ExchangeRates>}
    */
   async fetchExchangeRates(force = false): Promise<ExchangeRates> {
@@ -79,10 +102,21 @@ export class CurrencyConverter {
 
       this.ratePromise = (async () => {
         const usdPerBsv = await this.services.getBsvExchangeRate()
-        const gbpPerUsd = await this.services.getFiatExchangeRate('GBP')
-        const eurPerUsd = await this.services.getFiatExchangeRate('EUR')
 
-        this.exchangeRates = { usdPerBsv, gbpPerUsd, eurPerUsd }
+        const fiatTargets = SUPPORTED_FIAT_CURRENCY_CODES.filter(
+          (c): c is FiatCurrencyCode => c !== 'USD'
+        )
+        const fiatRates = await this.services.getFiatExchangeRates(fiatTargets)
+
+        const fiatPerUsd: Record<FiatCurrencyCode, number> = Object.fromEntries(
+          SUPPORTED_FIAT_CURRENCY_CODES.map(c => {
+            if (c === 'USD') return ['USD', 1]
+            const v = fiatRates.rates?.[c]
+            return [c, typeof v === 'number' ? v : 0]
+          })
+        ) as Record<FiatCurrencyCode, number>
+
+        this.exchangeRates = { usdPerBsv, fiatPerUsd }
         this.lastRateFetch = Date.now()
         this.ratePromise = null
         return this.exchangeRates
@@ -94,7 +128,7 @@ export class CurrencyConverter {
     }
   }
 
-  private async refreshPreferredCurrency(): Promise<string> {
+  private async refreshPreferredCurrency(): Promise<SupportedCurrencyCode> {
     const now = Date.now()
     if (now - this.lastCurrencyFetch < this.refreshInterval) {
       return this.preferredCurrency
@@ -104,10 +138,9 @@ export class CurrencyConverter {
     this.currencyPromise = (async () => {
       const settingsManager = new WalletSettingsManager(new WalletClient())
 
-      const newCurrency = (await settingsManager.get()).currency ?? 'SATS'
-      if (newCurrency !== this.preferredCurrency) {
-        this.preferredCurrency = newCurrency
-      }
+      const newCurrencyRaw = (await settingsManager.get()).currency ?? 'SATS'
+      const newCurrency = this.normalizeSupportedCurrencyCode(newCurrencyRaw)
+      if (newCurrency !== this.preferredCurrency) this.preferredCurrency = newCurrency
       this.lastCurrencyFetch = Date.now()
       this.currencyPromise = null
       return this.preferredCurrency
@@ -115,6 +148,15 @@ export class CurrencyConverter {
   
     return this.currencyPromise
   }  
+
+  private normalizeSupportedCurrencyCode(currency: string): SupportedCurrencyCode {
+    const upper = currency.toUpperCase()
+    if (upper === 'BSV' || upper === 'SATS') return upper
+    if ((SUPPORTED_FIAT_CURRENCY_CODES as readonly string[]).includes(upper)) {
+      return upper as FiatCurrencyCode
+    }
+    return 'SATS'
+  }
 
   /**
    * Converts currency amount based on user's preferences
@@ -160,47 +202,57 @@ export class CurrencyConverter {
    * @returns {number | null} - The converted amount or null if the conversion cannot be performed.
    */
   convertCurrency(amount: number, fromCurrency: string, toCurrency: string): number | null {
-    if (fromCurrency.toUpperCase() === toCurrency.toUpperCase()) {
-      return amount
+    const from = fromCurrency.toUpperCase()
+    const to = toCurrency.toUpperCase()
+    if (from === to) return amount
+
+    const usdPerBsv = this.exchangeRates.usdPerBsv
+    if (typeof usdPerBsv !== 'number' || usdPerBsv <= 0) {
+      throw new Error('Exchange rate not available: usdPerBsv')
     }
 
-    let amountInUsd: number | null
+    const getFiatPerUsd = (code: string): number => {
+      if (!(SUPPORTED_FIAT_CURRENCY_CODES as readonly string[]).includes(code)) {
+        throw new Error('Currency not supported!')
+      }
+      const v = this.exchangeRates.fiatPerUsd[code as FiatCurrencyCode]
+      if (typeof v !== 'number' || v <= 0) {
+        throw new Error(`Exchange rate not available: ${code} per USD`)
+      }
+      return v
+    }
 
     // Convert from the original currency to USD
-    switch (fromCurrency.toUpperCase()) {
+    let amountInUsd: number
+    switch (from) {
       case 'SATS':
-        amountInUsd = (amount / 100_000_000) * this.exchangeRates.usdPerBsv
+        amountInUsd = (amount / 100_000_000) * usdPerBsv
         break
       case 'BSV':
-        amountInUsd = amount * this.exchangeRates.usdPerBsv
-        break
-      case 'GBP':
-        amountInUsd = amount / this.exchangeRates.gbpPerUsd
-        break
-      case 'EUR':
-        amountInUsd = amount / this.exchangeRates.eurPerUsd
+        amountInUsd = amount * usdPerBsv
         break
       case 'USD':
         amountInUsd = amount
         break
-      default:
-        throw new Error('Currency not supported!')
+      default: {
+        const fiatPerUsd = getFiatPerUsd(from)
+        amountInUsd = amount / fiatPerUsd
+        break
+      }
     }
 
     // Convert from USD to the target currency
-    switch (toCurrency.toUpperCase()) {
-      case 'GBP':
-        return amountInUsd * this.exchangeRates.gbpPerUsd
-      case 'EUR':
-        return amountInUsd * this.exchangeRates.eurPerUsd
-      case 'BSV':
-        return amountInUsd / this.exchangeRates.usdPerBsv
+    switch (to) {
       case 'SATS':
-        return (amountInUsd / this.exchangeRates.usdPerBsv) * 100_000_000
+        return (amountInUsd / usdPerBsv) * 100_000_000
+      case 'BSV':
+        return amountInUsd / usdPerBsv
       case 'USD':
         return amountInUsd
-      default:
-        throw new Error('Currency not supported!')
+      default: {
+        const fiatPerUsd = getFiatPerUsd(to)
+        return amountInUsd * fiatPerUsd
+      }
     }
   }
 }
